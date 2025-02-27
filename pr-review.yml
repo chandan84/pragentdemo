@@ -15,8 +15,15 @@ jobs:
 
     name: Run PR Agent on every pull request and respond to comments
     steps:
-      - name: Checkout code
+      - name: Checkout current repo
         uses: actions/checkout@v3
+
+      - name: Checkout external repo with Python script
+        uses: actions/checkout@v3
+        with:
+          repository: uhc-tech-employer-individual/unet_comet_alt_auto_engineering_samples
+          ref: pragntghecact
+          path: external_repo
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -32,7 +39,7 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-        run: python get_azure_token.py
+        run: python external_repo/get_azure_token.py
 
       - name: PR Agent action step
         id: pragent
