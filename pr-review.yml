@@ -3,63 +3,50 @@ on:
   pull_request:
     types: [opened, reopened]
   issue_comment:
+
 jobs:
   pr_agent_job:
     if: ${{ github.event.sender.type != 'Bot' }}
-    runs-on: ubuntu-uhg-1
+    runs-on: ubuntu-latest
     permissions:
       issues: write
       pull-requests: write
       contents: write
-    name: Run pr agent on every pull request, respond to user comments
+
+    name: Run PR Agent on every pull request and respond to comments
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.10'
 
       - name: Install Azure Identity
         run: pip install azure-identity
 
       - name: Get Azure Token
         id: get_azure_token
-        run: |
-          python -c "
-from azure.identity import ClientSecretCredential
-import os
-
-def get_azure_token(tenant_id, client_id, client_secret):
-    credential = ClientSecretCredential(tenant_id, client_id, client_secret)
-    token = credential.get_token('https://cognitiveservices.azure.com/.default')
-    return token.token
-
-tenant_id = os.getenv('AZURE_TENANT_ID')
-client_id = os.getenv('AZURE_CLIENT_ID')
-client_secret = os.getenv('AZURE_CLIENT_SECRET')
-
-token = get_azure_token(tenant_id, client_id, client_secret)
-print(f'::set-output name=azure_openai_key::{token}')
-          "
         env:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: python get_azure_token.py
 
       - name: PR Agent action step
         id: pragent
         uses: uhc-tech-employer-individual/unet_comet_alt_auto_engineering_samples@pragntghecact
         env:
           LITELLM_LOG: "DEBUG"
-          LITELLM_EXTRA_HEADERS: '{"projectId": "${{ secrets.AZURE_CLIENT_SECRET }}"}' # Custom default headers
-          
-          OPENAI.API_TYPE: "azure_ad"  # Set API type to Azure AD
+          LITELLM_EXTRA_HEADERS: '{"projectId": "${{ secrets.AZURE_CLIENT_SECRET }}"}'
+          OPENAI_API_TYPE: "azure_ad"
           OPENAI_API_VERSION: ${{ vars.OPENAI_API_VERSION }}
           AZURE_API_VERSION: ${{ vars.OPENAI_API_VERSION }}
-
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }} # Azure AD Tenant ID
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }} # Azure AD Client ID
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }} # Azure AD Client Secret
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_OPENAI_KEY: ${{ steps.get_azure_token.outputs.azure_openai_key }}
           GITHUB_TOKEN: ${{ secrets.USER_TOKEN }}
-          OPENAI.API_BASE: ${{ secrets.OPENAI_API_BASE }}
-          OPENAI.DEPLOYMENT_ID: ${{ vars.MODEL_DEPLOYMENT_ID }}
+          OPENAI_API_BASE: ${{ secrets.OPENAI_API_BASE }}
+          OPENAI_DEPLOYMENT_ID: ${{ vars.MODEL_DEPLOYMENT_ID }}
